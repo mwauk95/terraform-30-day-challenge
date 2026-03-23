@@ -1,0 +1,7 @@
+# Terraform directories & files - never commit these
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+crash.log
