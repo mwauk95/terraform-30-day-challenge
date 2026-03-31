@@ -14,7 +14,7 @@ variable "instance_type" {
 variable "server_port" {
   description = "Port for the web server"
   type        = number
-  default     = 80
+  default     = 8080
 }
 
 variable "min_size" {
@@ -56,10 +56,10 @@ resource "aws_security_group" "instance" {
   name = "web-server-sg"
 
   ingress {
-    from_port       = var.server_port
-    to_port         = var.server_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    from_port   = var.server_port
+    to_port     = var.server_port
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -71,21 +71,16 @@ resource "aws_security_group" "instance" {
 }
 
 
-resource "aws_launch_template" "web-server-template" {
-  name_prefix            = "web-server-template"
-  image_id               = "ami-05024c2628f651b80"
-  instance_type          = var.instance_type
-  vpc_security_group_ids = [aws_security_group.instance.id]
+resource "aws_launch_configuration" "web-server" {
+  image_id        = "ami-0c02fb55956c7d316"
+  instance_type   = var.instance_type
+  security_groups = [aws_security_group.instance.id]
 
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    yum update -y
-    amazon-linux-extras install nginx1 -y
-    systemctl enable nginx
-    systemctl start nginx
-    echo "<h1>Hello from NGINX!</h1>" > /usr/share/nginx/html/index.html
+  user_data = <<-EOF
+    #!/bin/bash1
+    echo "Hello, World" > index.html
+    nohup busybox httpd -f -p ${var.server_port} &
     EOF
-  )
 
   lifecycle {
     create_before_destroy = true
@@ -94,11 +89,8 @@ resource "aws_launch_template" "web-server-template" {
 
 # Auto Scaling Group
 resource "aws_autoscaling_group" "webserver-sg" {
-  launch_template {
-    id      = aws_launch_template.web-server-template.id
-    version = "$Latest"
-  }
-  availability_zones = data.aws_availability_zones.all.names
+  launch_configuration = aws_launch_configuration.web-server.id
+  availability_zones   = data.aws_availability_zones.all.names
 
   min_size = var.min_size
   max_size = var.max_size
